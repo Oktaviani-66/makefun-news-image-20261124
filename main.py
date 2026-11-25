@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""THE HARBOUR LIGHT - NI24 entry program (Akun 13).
+"""Entry program for THE LANTERN GAZETTE (news-image-20261124).
 
-Copies the finished front page (entry.png, rendered in this session by
-compose_harbour.py) to the grader output directory. Standard library only,
-no network, deterministic: the same bytes every run.
+Python 3 standard library only, no network. Copies the embedded
+entry.png to the output directory and checks it is a 1024x1024 PNG
+of at most 1 MiB. Running it twice writes byte-identical output.
 """
-import hashlib
 import os
 import shutil
 import struct
@@ -13,30 +12,26 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "entry.png")
+MAX_BYTES = 1048576
 
 
 def main():
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
-    with open(SRC, "rb") as fh:
-        head = fh.read(33)
-    if head[:8] != b"\x89PNG\r\n\x1a\n":
-        sys.exit("entry.png is not a PNG file")
-    width, height = struct.unpack(">II", head[16:24])
-    if (width, height) != (1024, 1024):
-        sys.exit("entry.png must be exactly 1024x1024, got %dx%d" % (width, height))
-    size = os.path.getsize(SRC)
-    if size > 1048576:
-        sys.exit("entry.png exceeds 1 MiB: %d bytes" % size)
     os.makedirs(out_dir, exist_ok=True)
-    dst = os.path.join(out_dir, "entry.png")
-    shutil.copyfile(SRC, dst)
-    # byte-identical copy check: the grader runs this program twice and the
-    # two outputs must match, so the copy must match the source exactly.
-    with open(SRC, "rb") as a, open(dst, "rb") as b:
-        if hashlib.sha256(a.read()).hexdigest() != hashlib.sha256(b.read()).hexdigest():
-            sys.exit("copied entry.png does not match the source byte for byte")
-    print("wrote %s (%d bytes, %dx%d)" % (dst, size, width, height))
+    with open(SRC, "rb") as fh:
+        data = fh.read()
+    if len(data) > MAX_BYTES:
+        raise SystemExit("entry.png exceeds 1 MiB")
+    if data[:8] != b"\x89PNG\r\n\x1a\n":
+        raise SystemExit("entry.png is not a PNG")
+    width, height = struct.unpack(">II", data[16:24])
+    if (width, height) != (1024, 1024):
+        raise SystemExit("entry.png is not 1024x1024")
+    dest = os.path.join(out_dir, "entry.png")
+    with open(dest, "wb") as fh:
+        fh.write(data)
+    print("wrote", dest, len(data), "bytes")
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
